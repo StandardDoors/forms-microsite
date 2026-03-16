@@ -1,0 +1,224 @@
+---
+id: php_output_validation_testing
+description: "Patterns for validating generated HTML output with PHPUnit, DOM parsing, W3C Nu Checker, and network tests"
+---
+
+# PHP Output Validation Testing
+
+Patterns for testing generated build output — validating HTML structure, link integrity, and external URL availability using PHPUnit.
+
+## Data Providers for File Iteration
+
+Use a data provider to run the same assertions against every HTML file in `dist/`:
+
+```php
+public static function htmlFileProvider(): array
+{
+    $distDir = 'dist';
+
+    if (!is_dir($distDir)) {
+        return ['no-build' => ['']];
+    }
+
+    $files = glob("{$distDir}/*.html") ?: [];
+
+    if (empty($files)) {
+        return ['no-files' => ['']];
+    }
+
+    $result = [];
+    foreach ($files as $file) {
+        $result[basename($file)] = [$file];
+    }
+    return $result;
+}
+```
+
+### Key Points
+- **Return a placeholder when `dist/` is missing** — PHPUnit evaluates data providers before group filters; an empty provider causes an error even when the group is excluded
+- **Use `basename()` as the array key** — gives readable test output like `testHtmlHasDoctype with data set "wts-en.html"`
+- **Data provider must be `static`** (PHPUnit 10+ requirement)
+
+### Graceful Skip in Test Methods
+
+Each test method should skip gracefully when the build hasn't been run:
+
+```php
+private function readFile(string $file): string
+{
+    if ($file === '' || !file_exists($file)) {
+        $this->markTestSkipped('dist/ not built. Run "composer build" first.');
+    }
+
+    $content = file_get_contents($file);
+    $this->assertNotFalse($content, "Could not read {$file}");
+    return $content;
+}
+```
+
+## HTML Structure Assertions
+
+### DOM Parsing
+
+Use `DOMDocument` to check parseability. Only fail on fatal errors — libxml reports many false positives for valid HTML5:
+
+```php
+$dom = new DOMDocument();
+libxml_use_internal_errors(true);
+$dom->loadHTML($content);
+$errors = libxml_get_errors();
+libxml_clear_errors();
+libxml_use_internal_errors(false);
+
+$fatals = array_filter($errors, fn($e) => $e->level === LIBXML_ERR_FATAL);
+$this->assertEmpty($fatals, 'Fatal parse errors found');
+```
+
+### Structural Checks
+
+Standard assertions for every generated HTML file:
+
+- **DOCTYPE**: `assertMatchesRegularExpression('/^<!DOCTYPE\s+html>/i', ltrim($content))`
+- **Charset**: `assertMatchesRegularExpression('/<meta\s[^>]*charset\s*=/i', $content)`
+- **No raw PHP**: `assertStringNotContainsString('<?php', $content)`
+- **Internal link resolution**: extract `href` attributes and verify targets exist in `dist/`
+
+### Meta Tag Validation
+
+Check for common issues in generated meta tags:
+
+```php
+// Meta refresh URL must not be wrapped in single quotes
+$this->assertDoesNotMatchRegularExpression(
+    '/content="[^"]*;URL=\'/',
+    $content,
+    'meta refresh URL must not be wrapped in single quotes'
+);
+```
+
+## W3C Nu HTML Checker
+
+Use the official W3C Nu Checker Docker image for standards-compliant HTML validation in CI:
+
+```yaml
+- name: Validate HTML with Nu Checker (W3C)
+  if: ${{ !env.ACT }}
+  run: |
+    docker run --rm \
+      -v "$(pwd)/dist":/dist \
+      ghcr.io/validator/validator:24.10.17 \
+      vnu --errors-only --skip-non-html /dist
+```
+
+### Key Points
+- **Pin the image tag** (e.g., `24.10.17`) — don't use `:latest`
+- **`--errors-only`** — suppress warnings for cleaner output
+- **`--skip-non-html`** — ignore CSS, JS, and other non-HTML files in the mount
+- **Skip in `act`** — Docker-in-Docker support varies; guard with `if: ${{ !env.ACT }}`
+- **Run after PHPUnit HTML tests** — Nu Checker catches standards issues that DOM parsing misses
+
+### Local Validation via Makefile
+
+Provide a `ci` target that includes Docker validation for local runs:
+
+```makefile
+ci: ## Full CI — same as check + W3C HTML validator (requires Docker)
+	composer check
+	docker run --rm --platform linux/amd64 -v "$$(pwd)/dist":/dist \
+		ghcr.io/validator/validator:24.10.17 vnu --errors-only --skip-non-html /dist
+```
+
+## Network-Dependent URL Tests
+
+Validate that external URLs used in the site are reachable:
+
+```php
+/**
+ * @group network
+ */
+class UrlValidationTest extends TestCase
+{
+    private Client $client;
+
+    protected function setUp(): void
+    {
+        $this->client = new Client([
+            'timeout' => 10,
+            'allow_redirects' => true,
+            'http_errors' => false,
+        ]);
+    }
+}
+```
+
+### Patterns
+- **Use Guzzle** (`guzzlehttp/guzzle`) as a dev dependency for HTTP testing
+- **Use `HEAD` requests** — faster than `GET`, sufficient for availability checks
+- **Set `http_errors: false`** — check status codes manually instead of catching exceptions
+- **Accept 2xx and 3xx** as valid responses
+- **Catch `ConnectException` → `markTestSkipped()`** — network unavailability shouldn't fail the build
+- **Use `continue-on-error: true` in CI** for network test jobs — flaky by nature
+
+### Hardcoded vs Extracted URLs
+
+Two complementary approaches:
+1. **Hardcoded URL list** — curated list of critical URLs (e.g., redirect destinations)
+2. **URL extraction from build output** — parse `href` attributes from generated HTML and validate each
+
+Use a data provider for the hardcoded list:
+
+```php
+private const URLS_TO_VALIDATE = [
+    'https://example.com/',
+    'https://example.com/fr/',
+];
+
+public static function urlProvider(): array
+{
+    $urls = [];
+    foreach (self::URLS_TO_VALIDATE as $url) {
+        $key = str_replace(['https://', 'http://', '/'], ['', '', '_'], $url);
+        $urls[$key] = [$url];
+    }
+    return $urls;
+}
+```
+
+## Test Groups
+
+Organize output validation tests into groups so the default `composer test` stays fast:
+
+```php
+/** @group html-validation */
+class HtmlValidationTest extends TestCase { }
+
+/** @group network */
+class UrlValidationTest extends TestCase { }
+```
+
+Wire into Composer scripts:
+
+```json
+{
+    "test": ["@build", "vendor/bin/phpunit --exclude-group=html-validation,network"],
+    "test:html": "vendor/bin/phpunit --group=html-validation",
+    "test:network": "vendor/bin/phpunit --group=network"
+}
+```
+
+## Best Practices
+
+### ✅ DO:
+- **Return a placeholder from data providers** when `dist/` is missing — prevents PHPUnit errors
+- **Filter libxml errors to fatals only** — HTML5 triggers many false warnings
+- **Pin the W3C Nu Checker Docker image** by version tag
+- **Group all output/network tests** so `composer test` runs fast
+- **Use `markTestSkipped()`** for missing prerequisites, not assertions
+- **Clean up libxml error state** (`libxml_clear_errors`, `libxml_use_internal_errors(false)`)
+
+### ❌ DON'T:
+- **Fail on all libxml errors** — most are HTML5 false positives
+- **Hit the network in default test runs** — isolate in `@group network`
+- **Use `GET` for availability checks** — `HEAD` is faster and sufficient
+- **Let network failures break CI** — use `continue-on-error` or `markTestSkipped`
+- **Skip the `!env.ACT` guard** on Docker-based validation steps

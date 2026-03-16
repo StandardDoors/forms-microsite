@@ -1,0 +1,119 @@
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Helvetica Neue', 'Arial', sans-serif;
+    line-height: 1.6;
+    color: #333;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+/* Navigation */
+header {
+    border-bottom: 2px solid #0066cc;
+    padding: 1rem 0;
+    margin-bottom: 2rem;
+}
+
+nav {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.nav-links {
+    display: flex;
+    gap: 1.5rem;
+}
+
+nav a {
+    text-decoration: none;
+    color: #0066cc;
+    font-weight: 500;
+}
+
+nav a:hover {
+    text-decoration: underline;
+}
+
+.lang-toggle {
+    margin-left: auto;
+    padding: 0.25rem 0.75rem;
+    border: 1px solid #0066cc;
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+.lang-toggle:hover {
+    background-color: #0066cc;
+    color: #fff !important;
+    text-decoration: none !important;
+}
+
+/* Main content */
+main {
+    min-height: 60vh;
+    padding-bottom: 2rem;
+}
+
+h1 {
+    margin-bottom: 1rem;
+    color: #222;
+}
+
+h2 {
+    margin-bottom: 0.75rem;
+    color: #333;
+}
+
+p {
+    margin-bottom: 1rem;
+}
+
+/* Footer */
+footer {
+    border-top: 1px solid #ddd;
+    padding: 1rem 0;
+    margin-top: 2rem;
+    color: #666;
+    font-size: 0.875rem;
+    text-align: center;
+}
+
+/* Tally embed */
+.tally-embed {
+    width: 100%;
+    margin: 1rem 0;
+}
+
+/* Language selector (root page) */
+.lang-selector {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin-top: 4rem;
+}
+
+.lang-selector a {
+    display: block;
+    padding: 2rem 3rem;
+    text-decoration: none;
+    color: #0066cc;
+    border: 2px solid #0066cc;
+    border-radius: 8px;
+    font-size: 1.25rem;
+    font-weight: 600;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.lang-selector a:hover {
+    background-color: #0066cc;
+    color: #fff;
+}

@@ -1,73 +1,70 @@
-# Standard Doors Forms Microsite
+# Forms Microsite
 
-A simple static microsite for Standard Doors form submissions, built to be hosted on Netlify.
+Static bilingual microsite for Standard Doors forms. PHP source files are pre-rendered to static HTML at build time and served via GitHub Pages. Pages use clean directory-based URLs (`/en/service/` instead of `service-en.html`).
+
+## How it works
+
+`build.php` recursively processes each `src/pages/**/*.php` file through PHP, captures the output as static HTML, and writes it to `dist/` preserving directory structure. Non-index pages get their own directory (`service.php` → `service/index.html`). No PHP runs on the server. A `dist/404.html` redirects legacy `.php` URLs to their `.html` equivalents.
+
+## Quick start
+
+```bash
+composer install  # Install dependencies
+composer build    # Generate static HTML in dist/
+composer serve    # Preview source at localhost:8000
+```
+
+## Project structure
+
+- `src/pages/` — Page source files (root index + en/fr subdirectories)
+- `src/partials/` — Shared components (header, footer, tally-embed)
+- `src/i18n/` — Translation strings (en.php, fr.php)
+- `src/config.php` — Site config (Tally form ID, site names)
+- `src/assets/` — CSS, logos
+- `dist/` — Generated output (git-ignored)
+- `tests/` — PHPUnit tests
+
+## Quality tools
+
+Run `composer check` before committing — it runs the full suite:
+
+```bash
+composer lint          # PSR-12 code style check
+composer lint:fix      # Auto-fix style issues
+composer analyse       # PHPStan static analysis (level 5)
+composer test          # Build + unit tests
+composer validate-html # HTML structure validation (PHPUnit)
+composer check         # All of the above
+```
 
 ## Pages
 
-1. **Home** (`index.html`) - Landing page with links to both forms
-2. **Find Your Production Number** (`/findyourproductionnumber/`) - Instructions for locating production numbers
-3. **Service Request Form** (`service.html`) - Complete service request form with file uploads
+- `/` — Language selector (EN / FR)
+- `/en/` — English home
+- `/fr/` — French home
+- `/en/service/` — Service request form (Tally embed)
+- `/fr/service/` — Demande de service (Tally embed)
+- `/en/find-your-production-number/` — Find your production number
+- `/fr/find-your-production-number/` — Trouver votre numéro de production
 
-## Features
+## i18n
 
-- Responsive design using Tailwind CSS
-- Netlify Forms integration for easy form submission handling
-- Dynamic form fields based on country selection (Canada/USA)
-- Conditional email notification fields
-- File upload support for proof of purchase and issue photos
-- Auto-populated today's date field
+Translations live in `src/i18n/en.php` and `src/i18n/fr.php` as key-value arrays. Each page sets `$lang` before including the header partial, which loads the correct file into `$t`.
 
-## Deployment to Netlify
+## Tally form
 
-### Option 1: Drag and Drop
-1. Zip the entire project folder
-2. Go to [Netlify Drop](https://app.netlify.com/drop)
-3. Drag and drop the folder or zip file
+The embedded form ID is configured in `src/config.php` (`tally_form_id`). Change it there to swap forms site-wide.
 
-### Option 2: Git-based Deployment
-1. Initialize a git repository: `git init`
-2. Add files: `git add .`
-3. Commit: `git commit -m "Initial commit"`
-4. Push to GitHub/GitLab/Bitbucket
-5. Connect the repository in Netlify dashboard
-6. Netlify will auto-detect settings from `netlify.toml`
+## CI/CD
 
-### Option 3: Netlify CLI
-```bash
-# Install Netlify CLI
-npm install -g netlify-cli
+**On pull request** — lint, static analysis, unit tests, build check, HTML validation.
 
-# Login to Netlify
-netlify login
+**On push to `main`** — same as above, then deploy to GitHub Pages.
 
-# Deploy
-netlify deploy --prod
-```
+**Daily at 2:00 AM EST** — full rebuild and deploy.
 
-## Form Submissions
+## Requirements
 
-The service request form uses Netlify Forms. After deployment:
-
-1. Netlify will automatically detect the form (via the `netlify` attribute in the form tag)
-2. Form submissions will appear in your Netlify dashboard under Forms
-3. You can configure email notifications in the Netlify dashboard
-
-## Files Structure
-
-```
-.
-├── index.html                          # Home page
-├── service.html                        # Service request form
-├── findyourproductionnumber/
-│   └── index.html                      # Production number instructions
-├── Standard-Logo-50-years-Colour.png  # Logo
-├── netlify.toml                        # Netlify configuration
-└── README.md                           # This file
-```
-
-## Notes
-
-- All form fields, labels, and content match the original forms at forms.standarddoors.com
-- The design uses a clean, modern approach with Tailwind CSS for responsive layout
-- JavaScript handles dynamic form sections (country-based address fields, email notifications)
-- File uploads are limited to 7MB with specific file type restrictions as per original requirements
+- PHP 8.5+
+- Composer
+- Docker (optional — only needed for `make ci` which runs the W3C Nu HTML Checker)

@@ -1,0 +1,139 @@
+---
+id: php_static_site_build
+description: "Patterns for using PHP as a static site generator with output buffering and build scripts"
+---
+
+# PHP Static Site Build
+
+Patterns for using PHP as a static site generator — processing `.php` source files into static `.html` output at build time. No PHP runs on the server.
+
+## Build Script Pattern
+
+Use a standalone `build.php` in the project root that:
+1. Cleans the output directory
+2. Processes each `src/*.php` file via output buffering
+3. Generates supplementary files (404 page, favicons)
+4. Copies static assets
+
+### Output Buffering
+
+Capture PHP output as static HTML using `ob_start()` / `ob_get_clean()`:
+
+```php
+ob_start();
+include $phpFile;
+$html = ob_get_clean();
+file_put_contents($outputPath, $html);
+```
+
+### Working Directory Management
+
+Partials use relative `include` paths, so `chdir()` into the source directory before processing and restore after:
+
+```php
+$originalDir = getcwd();
+chdir($this->srcDir);
+
+ob_start();
+include basename($file);
+$content = ob_get_clean();
+
+chdir($originalDir);
+```
+
+Always wrap in try/catch to ensure the directory is restored on failure.
+
+### Server Variable Injection
+
+When build output depends on the current filename (e.g., for meta refresh tags), inject `$_SERVER` values before processing:
+
+```php
+$_SERVER['PHP_SELF'] = $outputFilename;
+```
+
+### CLI vs Include Guard
+
+Build scripts should only execute when run directly, not when included by tests:
+
+```php
+if (realpath(__FILE__) === realpath($_SERVER['SCRIPT_FILENAME'] ?? '')) {
+    $builder = new SiteBuilder();
+    $builder->build();
+}
+```
+
+This allows tests to `require_once` the file and instantiate the builder with custom parameters.
+
+## File Naming
+
+- Source files: `src/*.php` (e.g., `wts-en.php`, `index.php`)
+- Output files: `dist/*.html` (e.g., `wts-en.html`, `index.html`)
+- Partials: `src/partials/*.php` — not processed directly, included by source files
+- Helpers: `src/Helpers/*.php` — PSR-4 autoloaded utility classes
+
+## 404 Redirect Page
+
+When migrating from `.php` URLs to `.html`, generate a `dist/404.html` that redirects:
+
+```html
+<script>
+    (function() {
+        const path = window.location.pathname;
+        if (path.endsWith('.php')) {
+            window.location.replace(path.replace(/\.php$/, '.html'));
+        }
+    })();
+</script>
+```
+
+This handles legacy bookmarks and cached URLs gracefully on GitHub Pages.
+
+## Dev Server
+
+Use PHP's built-in server pointed at `src/` for local preview:
+
+```json
+{
+    "serve": "php -S localhost:8000 -t src"
+}
+```
+
+This serves source files with live PHP processing — no build step needed during development.
+
+## Build Output
+
+- **`dist/` is always gitignored** — never commit generated HTML
+- **Clean `dist/` before every build** — remove stale files from previous builds
+- **Copy assets verbatim** from `src/assets/` to `dist/assets/`
+- **Copy favicon files** from the project root to `dist/`
+
+## Composer Scripts
+
+Wire the build into Composer scripts so it integrates with the quality gate:
+
+```json
+{
+    "build": "php build.php",
+    "clean": "rm -rf dist",
+    "test": ["@build", "vendor/bin/phpunit --exclude-group=html-validation,network"],
+    "check": ["@lint", "@analyse", "@test", "@validate-html"]
+}
+```
+
+The `test` script runs `@build` first — tests depend on fresh output in `dist/`.
+
+## Best Practices
+
+### ✅ DO:
+- **Always clean `dist/` before building** — prevents stale output
+- **Use output buffering** (`ob_start` / `ob_get_clean`) to capture PHP output
+- **Restore `getcwd()` after `chdir()`** — even on exceptions
+- **Guard against direct execution** so tests can safely include the build script
+- **Keep partials in `src/partials/`** and exclude them from strict analysis rules
+- **Wire `@build` into `@test`** so tests always run against fresh output
+
+### ❌ DON'T:
+- **Commit `dist/`** — generate it in CI and locally as needed
+- **Process partials as standalone pages** — they are fragments, not full documents
+- **Use `echo` in build scripts for output** — use `file_put_contents` for generated files; `echo` is for progress messages only
+- **Forget to restore the working directory** — this breaks subsequent file operations
