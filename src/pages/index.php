@@ -4,15 +4,18 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Standard Doors – Forms</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <style type="text/tailwindcss">
-        @theme {
-            --color-brand: #008C3C;
-            --font-sans: 'Helvetica Neue', Arial, sans-serif;
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { brand: '#008C3C' },
+                },
+            },
         }
-        @layer base {
-            body { @apply font-sans text-gray-700 leading-relaxed max-w-5xl mx-auto px-4; }
-        }
+    </script>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #374151; line-height: 1.625; max-width: 64rem; margin: 0 auto; padding: 0 1rem; }
     </style>
 </head>
 <body>

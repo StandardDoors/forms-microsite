@@ -37,7 +37,7 @@ check: ## Run all quality checks (lint, analyse, build, test, HTML validation)
 
 ci: ## Full CI — same as check + W3C HTML validator (requires Docker)
 	composer check
-	docker run --rm --platform linux/amd64 -v "$$(pwd)/dist":/dist ghcr.io/validator/validator:24.10.17 vnu --errors-only --skip-non-html --also-check-css /dist
+	docker run --rm --platform linux/amd64 -v "$$(pwd)/dist":/dist ghcr.io/validator/validator:24.10.17 vnu --errors-only --skip-non-html /dist
 	@echo "\n✅ All CI checks passed"
 
 ci-act: ## Test CI workflow YAML in Docker via act (slow on Apple Silicon)

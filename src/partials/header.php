@@ -16,20 +16,28 @@ $altUrl = '/' . $altLang . ($pagePath ?? '/');
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?php echo ($pageTitle ?? $siteName); ?> – <?php echo $siteName; ?></title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <style type="text/tailwindcss">
-        @theme {
-            --color-brand: #008C3C;
-            --color-brand-mid: #06AE42;
-            --color-brand-light: #23A455;
-            --font-sans: 'Helvetica Neue', Arial, sans-serif;
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: '#008C3C',
+                        'brand-mid': '#06AE42',
+                        'brand-light': '#23A455',
+                    },
+                    fontFamily: {
+                        sans: ['Helvetica Neue', 'Arial', 'sans-serif'],
+                    },
+                },
+            },
         }
-        @layer base {
-            body  { @apply font-sans text-gray-700 leading-relaxed max-w-5xl mx-auto px-4; }
-            h1    { @apply text-2xl font-bold mb-4 text-gray-900; }
-            h2    { @apply text-xl font-semibold mb-3 text-gray-800; }
-            p     { @apply mb-4; }
-        }
+    </script>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #374151; line-height: 1.625; max-width: 64rem; margin: 0 auto; padding: 0 1rem; }
+        h1   { font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; color: #111827; }
+        h2   { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.75rem; color: #1f2937; }
+        p    { margin-bottom: 1rem; }
     </style>
 </head>
 <body>
