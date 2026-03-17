@@ -111,7 +111,7 @@ jobs:
           docker run --rm \
             -v "$(pwd)/dist":/dist \
             ghcr.io/validator/validator:24.10.17 \
-            vnu --errors-only --skip-non-html /dist
+            vnu --errors-only --skip-non-html --also-check-css /dist
 
       - name: Verify build output
         run: |
