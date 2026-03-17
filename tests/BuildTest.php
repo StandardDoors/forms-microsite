@@ -6,68 +6,61 @@ use PHPUnit\Framework\TestCase;
 
 class BuildTest extends TestCase
 {
-    private string $testDistDir = 'dist-test';
+    private static string $testDistDir = 'dist-test';
 
-    protected function setUp(): void
+    public static function setUpBeforeClass(): void
     {
-        // Clean test dist directory before each test
-        if (is_dir($this->testDistDir)) {
-            $this->removeDirectory($this->testDistDir);
+        // Build once for all tests in this class.
+        if (is_dir(self::$testDistDir)) {
+            self::removeDirectoryRecursive(self::$testDistDir);
         }
+
+        require_once __DIR__ . '/../build.php';
+
+        $builder = new \SiteBuilder('src', self::$testDistDir);
+        $builder->build();
     }
 
-    protected function tearDown(): void
+    public static function tearDownAfterClass(): void
     {
-        // Clean up after tests
-        if (is_dir($this->testDistDir)) {
-            $this->removeDirectory($this->testDistDir);
+        // Clean up after all tests in this class.
+        if (is_dir(self::$testDistDir)) {
+            self::removeDirectoryRecursive(self::$testDistDir);
         }
     }
 
     public function testBuildCreatesDistDirectory(): void
     {
-        $this->buildSite();
-
-        $this->assertDirectoryExists($this->testDistDir);
+        $this->assertDirectoryExists(self::$testDistDir);
     }
 
     public function testBuildGeneratesHtmlFiles(): void
     {
-        $this->buildSite();
-
-        $htmlFiles = $this->findHtmlFiles($this->testDistDir);
+        $htmlFiles = $this->findHtmlFiles(self::$testDistDir);
 
         $this->assertNotEmpty($htmlFiles, 'No HTML files generated');
     }
 
     public function testBuildCreatesLanguageDirectories(): void
     {
-        $this->buildSite();
-
-        $this->assertDirectoryExists("{$this->testDistDir}/en", 'English directory not created');
-        $this->assertDirectoryExists("{$this->testDistDir}/fr", 'French directory not created');
+        $this->assertDirectoryExists(self::$testDistDir . '/en', 'English directory not created');
+        $this->assertDirectoryExists(self::$testDistDir . '/fr', 'French directory not created');
     }
 
     public function testBuildCopiesAssets(): void
     {
-        $this->buildSite();
-
-        $assetsDir = "{$this->testDistDir}/assets";
+        $assetsDir = self::$testDistDir . '/assets';
         $this->assertDirectoryExists($assetsDir, 'Assets directory not copied');
     }
 
     public function testBuildCreates404Page(): void
     {
-        $this->buildSite();
-
-        $this->assertFileExists("{$this->testDistDir}/404.html", '404 page not created');
+        $this->assertFileExists(self::$testDistDir . '/404.html', '404 page not created');
     }
 
     public function testGeneratedFilesContainExpectedContent(): void
     {
-        $this->buildSite();
-
-        $enFile = "{$this->testDistDir}/en/index.html";
+        $enFile = self::$testDistDir . '/en/index.html';
 
         if (file_exists($enFile)) {
             $content = file_get_contents($enFile);
@@ -80,25 +73,23 @@ class BuildTest extends TestCase
 
     public function testCleanUrlStructure(): void
     {
-        $this->buildSite();
 
         // Service pages should be in their own directories
         $this->assertFileExists(
-            "{$this->testDistDir}/en/service/index.html",
+            self::$testDistDir . '/en/service/index.html',
             'English service page not in clean URL structure'
         );
         $this->assertFileExists(
-            "{$this->testDistDir}/fr/service/index.html",
+            self::$testDistDir . '/fr/service/index.html',
             'French service page not in clean URL structure'
         );
     }
 
     public function testAllSourceFilesAreProcessed(): void
     {
-        $this->buildSite();
 
         $sourceFiles = $this->findPhpFiles('src/pages');
-        $outputFiles = $this->findHtmlFiles($this->testDistDir);
+        $outputFiles = $this->findHtmlFiles(self::$testDistDir);
 
         // Exclude generated files that don't correspond to source pages
         $generatedPages = array_filter(
@@ -113,13 +104,6 @@ class BuildTest extends TestCase
         );
     }
 
-    private function buildSite(): void
-    {
-        require_once __DIR__ . '/../build.php';
-
-        $builder = new \SiteBuilder('src', $this->testDistDir);
-        $builder->build();
-    }
 
     private function findHtmlFiles(string $dir): array
     {
@@ -153,7 +137,7 @@ class BuildTest extends TestCase
         return $files;
     }
 
-    private function removeDirectory(string $dir): void
+    private static function removeDirectoryRecursive(string $dir): void
     {
         if (!is_dir($dir)) {
             return;
@@ -169,7 +153,7 @@ class BuildTest extends TestCase
             $path = "{$dir}/{$item}";
 
             if (is_dir($path)) {
-                $this->removeDirectory($path);
+                self::removeDirectoryRecursive($path);
             } else {
                 unlink($path);
             }
