@@ -11,7 +11,7 @@ $langConfig = $config[$lang] ?? $config['en'];
 $tallyFormId = $langConfig['tally_form_id'] ?? 'ODzbkp';
 
 ?>
-<div class="tally-embed">
+<div class="w-full my-4">
     <iframe
         data-tally-src="https://tally.so/embed/<?php echo $tallyFormId; ?>?alignLeft=1&transparentBackground=1&dynamicHeight=1"
         loading="lazy"

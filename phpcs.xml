@@ -66,6 +66,9 @@
         <exclude-pattern>build.php</exclude-pattern>
     </rule>
 
+    <!-- Only scan PHP files -->
+    <arg name="extensions" value="php"/>
+
     <!-- Show progress and colors -->
     <arg value="sp"/>
     <arg name="colors"/>
